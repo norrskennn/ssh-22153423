@@ -247,14 +247,14 @@ def ipsec_config(router_info, isakmp_policy, crypto_map, shared_key):
 #Main menu
 while True:
     print("\n Main Menu: ")
-    print("1. Change_Hostname_now")
-    print("2. Establish_SSH_Connection_ ")
-    print("3. Establish_Telnet_Connection_")
-    print("4. retrieve_running_configuration")
-    print("5. Compare_running_configuration_with_Cisco_Hardening_Advice")
-    print("6. Configure_event_logging_will_redirect")
-    print("7. Does_Access_Control_from_list")
-    print("8.IP_security")
+    print("1. Change Hostname now")
+    print("2. EstablishSSH Connection ")
+    print("3. EstablishTelnet_Connection")
+    print("4. retrieve running configuration")
+    print("5. Compare running configuration with Cisco Hardening Advice")
+    print("6. Configure event logging will redirect")
+    print("7. Does Access Control from list")
+    print("8.IP security")
     print("0. Exiting")
 
     main_choice = input("Enter your choice: ")
