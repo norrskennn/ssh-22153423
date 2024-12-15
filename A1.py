@@ -1,9 +1,11 @@
+from ast import main
 from logging import FileHandler
+from random import choice
 from netmiko import ConnectHandler
 import difflib
 import logging
 
-#Establish cisco_router 
+#Establish cisco_router information
 router_info = {
     'device_type': 'cisco_ios',
     'host': '192.168.56.101',
@@ -12,8 +14,10 @@ router_info = {
     'secret': 'class123!', 
 }
 
+#Hostname rename
 hostname = 'R1'
 
+#Cisco hardening advice
 hardening_advice = """
 ! Cisco Hardening Advice
 
@@ -72,7 +76,15 @@ interface range 192.168.56.101/24
     spanning-trr portfast
     ip verify source
 """
+
 device_config = ""
+
+acl_list = 'acl_conf.txt'
+
+#IPsec parameters
+isakmp_policy = 10 #lower number mean higher priority 
+crypto_map = 'VPN_MAP' #a crypto map defines ipsec polcies that specify which traffic should be encrypted 
+shared_key =  'Th3cra!c$f@rfr0mm!ghty' #this key must be configured identically on both ends for a VPN Connection 
 
 def ssh(router_info):
     try:
@@ -80,34 +92,34 @@ def ssh(router_info):
         with ConnectHandler(**router_info) as ssh_connection:
             #Enable mode
             ssh_connection.enable()
-            print("SSH connection was successful")
+            print("SSH connection successful")
 
-            #Log a syslog text for user
-            ssh_connection.send_commandd("SSH Connection is established.")
+            #Log a syslog message
+            ssh_connection.send_command("SSH Connection established.")
 
-    #Printing error message in string for user
+    #Print error message in string
     except Exception as e:
         print(f"Error!: {str(e)}")
 
-#Establishing a Telnet connection
+#Establish a Telnet connection
 def telnet(router_info):
     try:
         with ConnectHandler(**router_info)as telnet_connection:
             
             #Send a syslog message to the file for telnet connection
-            telnet_connection.send_commandd("Telnet connection is established.")
+            telnet_connection.send_command("Telnet connection established.")
             #Syslog message is not being printed for security reasons
     
-    #Prints an error message in string for the user
+    #Prints an error message in string
     except Exception as e:    
         print(f"Error: {str(e)}")
             
 
 def hostname_change(router_info):
     
-    #New hostname 
-    new_hostname = input("Enter a new hostname: ")
-
+    #New hostname from the user
+    new_hostname = input("Enter new hostname: ")
+#while true is a loop and will stop when the condition is met 
     while True:
         print("\n Change Hostname Menu: ")
         print("1. Change hostname with SSH ")
@@ -115,45 +127,48 @@ def hostname_change(router_info):
         print("0. Exit")
 
         choice = input("Enter your choice: ")
-
+#gives option for 1 
         if choice == '1':
-            ssh(new_hostname)
+            ssh(new_hostname) #calls the ssh() function with new hostname as argument
         elif  choice == '2':
-            break
+            break             # if the first condition is false check for other options 
         elif choice == '0':
             print('Exiting {new_hostname}.')
             exit()
         else:
-            print("Invalid. Choose again")
+            print("Invalid. Choose again") #lets user known their input was invalid and prompts them to choose again 
 
-def grab_router_config(router_info):
+def grab_router_config(router_info): #function 
     try:
-        #establish SSH connection
-        with ConnectHandler(**router_info) as ssh_connection:
-            #Enter enable mode
-            ssh_connection.enable()
+        #Establish SSH connection for config files
+        with ConnectHandler(**router_info) as ssh_connection: 
+            #Enter enable mode / router_infoo is a input 
+            ssh_connection.enable() #inside the function 
 
-            # running config
-            output = ssh_connection.send_commandd("show running-config")
+            #Grab running config
+            output = ssh_connection.send_command("show running-config") #retriveves configuration 
 
-            return output
+            return output 
 
     except Exception as e:
-        print(f"Error!: {str(e)}")
+        print(f"Error!: {str(e)}")    #error handling if any error its caught in the except block 
+        #and you are given an error 
 
 #Compares the running config to cisco hardening advice
-def config_hardening_compare(device_config, hardening_advice):
-    # use Difflib to compares the running configuration with the hardening recs
+def config_hardening_compare(device_config, hardening_advice): #function 
+    #Difflib compares the config to hardening advice
     d = difflib.Differ()
-    diff = list(d.compare(device_config.splitlines(), hardening_advice.splitlines()))
+    diff = list(d.compare(device_config.splitlines(), hardening_advice.splitlines())) 
+    #deivce_config is a string representing the router hardening_advice also a string 
 
-    #prints the differences
-    print("\n".join(diff))
+    #prints differences
+    print("\n".join(diff)) #output The differences between the device /
+    #configuration and the hardening advice are printed out line by line.
 
 
-def syslog_config(router_info):
-    try:
-        #Logged to a file
+def syslog_config(router_info): # function that sets up logging to a file and establishes an SSH connection to a router to configure syslog.
+    try:   #Input: It takes a single argument router_infoo, is a dictionary containing the connection details for the router  IP, username, password).
+        #Logging to a file
         syslog_file_handler = FileHandler('syslog_events_monitoring.txt')
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(messages)s')
         syslog_file_handler.setFormatter(formatter)
@@ -162,55 +177,110 @@ def syslog_config(router_info):
         logger.addHandler(syslog_file_handler)
         logger.setLevel(logging.INFO)
 
-        #Establish the SSH connection
+        #Establish SSH connection
         with ConnectHandler(**router_info) as ssh_connection:
             #Enter enable mode
-            ssh_connection.enable()
+            ssh_connection.enable() #The enable()) method is called to enter privileged mode on the router.
 
+#This function configures logging to a file and establishes an SSH connection to a router to enable syslog configuration.
             event_log_commands = [
-                'logging buffered 4096', #Overwriting after after certain messages logged
-                'logging console warning', #Logs what commands have problems
-                'logging monitor warning', #Alerts if anthing is wrong
-                'logging trap notifcations', #Limits text logged to file
+                'logging buffered 4096', #Overwriting will occur after 50 messages logged
+                'logging console warning', #Logs commands entered in console 
+                'logging monitor warning', #Alerts if the systems performance or health is affected
+                'logging trap notifcations', #Limits messages logged to file
             ]
             ssh_connection.send_config_set(event_log_commands)
+# sends the list of event logging commands to the router, applying the configurations for event logging.
 
-            # Message for event log configuration
-            ssh_connection.send_commandd("Logging syslog, event logging configured. ")
-            # Syslog message not printed 
+            #Log syslog message for event log configuration
+            ssh_connection.send_command("Logging syslog, event logging configured. ")
+            # Syslog message not printed to console for security measures
     except Exception as e:
-        print(f"Error!: {str(e)}")
+        print(f"Error!: {str(e)}") #If an error occurs during the SSH connection or command execution,
+        #it is caught by the except block, and an error message is printed.
 
-#Main 
+
+def acl_list(router_infoo, acl_file): #function 
+    ## Connect to the router using SSH with the provided connection details (router_infoo)
+    with ConnectHandler(**router_infoo) as ssh_connection:
+        ## Enter privileged (enable) mode on the router to issue configuration commands
+        ssh_connection.enable()
+
+
+        #Read ACL config from file
+        with open(acl_file, 'r') as file:
+            acl_config = file.read().splitlines()
+
+        #Send config command to the router
+        output = ssh_connection.send_confifg_set(acl_config)
+
+        #Show file configuration of who has access and thier privellage
+        print(output)
+
+def ipsec_config(router_info, isakmp_policy, crypto_map, shared_key):
+    #connect to device
+    with ConnectHandler(**router_info) as ssh_connection:
+        #Enter enable mode
+        ssh_connection.enable
+  # Build ISAKMP configuration string with the provided policy and parameters
+        isakmp_config = f"crypto isakmp policy {isakmp_policy}\n" \
+                        "encryption aes-256\n" \
+                        "hash sha256\n" \
+                        "authentication pre-share\n" \
+                        f"group 14\n" \
+                        f"lifetime 28800\n" \
+        
+                # Configure the pre-shared key for ISAKMP (used in IPsec)
+        shared_key_config =  f"crypto isakmp key {shared_key} address 192.168.56.101\n"
+
+        #Config crypto mapping
+        crypto_map_config = f"crypto map {crypto_map} 10 ipsec-isakmp" \
+                            "set peer 0.0.0.0\n" \
+                            f"set transform-set myset\n" \
+                            "match address 100\n"
+        
+        # Send all IPsec configuration commands to the router at once
+        output = ssh_connection.send_config_set([isakmp_config, shared_key_config, crypto_map_config])
+
+        print(output)
+
+#Main menu
 while True:
-    print("\n Main Menu!: ")
-    print("1. Update device Hostname!")
-    print("2. Establish SSH Connection!")
-    print("3. Establish Telnet Connection!")
-    print("4. Retrieve running configuration!")
-    print("5. Compare running configuration with Security Guidelines!")
-    print("6. Configure event logging and redirect to a file!")
-    print("0. Exit!")
+    print("\n Main Menu: ")
+    print("1. Change_Hostname_now")
+    print("2. Establish_SSH_Connection_ ")
+    print("3. Establish_Telnet_Connection_")
+    print("4. retrieve_running_configuration")
+    print("5. Compare_running_configuration_with_Cisco_Hardening_Advice")
+    print("6. Configure_event_logging_will_redirect")
+    print("7. Does_Access_Control_from_list")
+    print("8.IP_security")
+    print("0. Exiting")
 
-    main_choice_option = input("Enter a choice: ")
+    main_choice = input("Enter your choice: ")
 
-    if main_choice_option == '1':
-        hostname_change(router_info)
-    elif main_choice_option == '2':
+    if main_choice == '1':
+        hostname_change(router_info) #host name(the yellow text) is the function and router is the variable 
+    elif main_choice == '2':
         ssh(router_info)
-    elif main_choice_option == '3':
+    elif main_choice == '3':
         telnet(router_info, "")
-    elif main_choice_option == '4':
+    elif main_choice == '4':
         device_config = grab_router_config(router_info)
-        print("Current Running Configuration:\n", device_config)
-    elif main_choice_option == '5':
+        print("Running Configuration now:\n", device_config)
+    elif main_choice == '5':
         config_hardening_compare(device_config,hardening_advice)
-    elif main_choice_option == '6':
+    elif main_choice == '6':
         syslog_config(router_info)
-    elif main_choice_option == '0':
+    elif main_choice == '7':
+       acl_list(router_info, acl_list) 
+    elif main_choice == '8':
+        ipsec_config(router_info,isakmp_policy,crypto_map,shared_key)
+    elif main_choice == '0':
         print("Exiting router now.")
         exit()
     else:
-        print("Invalid option try again")
+        print("Invalid choose")
 
-#S22153423
+    #s22153423
+    
